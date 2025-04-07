@@ -13,7 +13,7 @@ Upload to filer:
 Appen genererer en rapport med:
 - Detaljeret liste over alle åbne workorders med e-mails
 - Oversigt over antal åbne ordrer pr. værksted
-- ✅ Opdelt visning pr. værksted med overskrifter
+- ✅ Opdelt visning pr. værksted med én headerlinje
 """)
 
 workorder_file = st.file_uploader("📄 Upload workorder Excel-fil", type=["xlsx"])
@@ -41,22 +41,25 @@ if workorder_file and email_file:
 
             row = 0
             for (workshop, email), group in merged.groupby(["WorkshopName", "Email"]):
-                worksheet.write(row, 0, f"🏭 {workshop} ({email})")
-                row += 1
+                # Overskrift: værkstedsnavn og e-mail
+                worksheet.write(row, 0, f"🏭 {workshop} – {email}")
+                row += 2
+                # Kolonneoverskrifter
                 for col_num, col_name in enumerate(group.columns):
                     worksheet.write(row, col_num, col_name)
                 row += 1
+                # Rækker
                 for _, data_row in group.iterrows():
                     for col_num, value in enumerate(data_row):
                         worksheet.write(row, col_num, str(value))
                     row += 1
-                row += 2  # Ekstra mellemrum
+                row += 2  # Luft før næste værksted
 
         output.seek(0)
 
         st.success("✅ Rapport genereret!")
         st.download_button(
-            label="📥 Download rapport med værkstedsoversigt",
+            label="📥 Download rapport med værkstedsvisning",
             data=output,
             file_name="rapport_med_pr_vaerksted.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
