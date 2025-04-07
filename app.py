@@ -60,6 +60,7 @@ with tab1:
 
     if wo_file and email_file:
         try:
+            # Indlæs data og valider kolonner
             wo_df = pd.read_excel(wo_file)
             email_df = pd.read_excel(email_file)
 
@@ -69,7 +70,10 @@ with tab1:
                 st.error(f"❌ Følgende kolonner mangler i workorder-filen: {', '.join(missing)}")
             else:
                 merged_df = wo_df.merge(email_df, on="WorkshopName", how="left")
+
                 st.session_state["merged"] = merged_df
+        except Exception as e:
+            st.error(f"Fejl ved indlæsning: {e}")
 
                 st.sidebar.header("🎛 Visning")
                 all_view = st.sidebar.checkbox("Vis alle værksteder samlet", value=True)
