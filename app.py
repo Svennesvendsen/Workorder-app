@@ -1,37 +1,44 @@
-
 import streamlit as st
 import pandas as pd
 from io import BytesIO
 
 st.set_page_config(page_title="Workorder Rapport", layout="centered")
-st.title("🔧 Ugentlig Workorder Rapport")
+st.title("🔧 Udvidet Workorder Rapport")
 
-st.markdown("Upload din Excel-fil med aktive workorders. Appen genererer en rapport med antal åbne workorders pr. værksted.")
+st.markdown("""
+Upload to filer:
+1. Excel med **aktive workorders**
+2. Excel med **værksted-email mapping** (WorkshopName + Email)
+""")
 
-uploaded_file = st.file_uploader("Upload Excel-fil", type=["xlsx"])
+workorder_file = st.file_uploader("Upload workorder Excel-fil", type=["xlsx"])
+email_file = st.file_uploader("Upload værksted-email Excel-fil", type=["xlsx"])
 
-if uploaded_file:
+if workorder_file and email_file:
     try:
-        xls = pd.ExcelFile(uploaded_file)
-        df = xls.parse(xls.sheet_names[0])
+        # Læs data
+        workorders = pd.read_excel(workorder_file)
+        emails = pd.read_excel(email_file)
 
-        # Generer oversigt over antal åbne workorders pr. værksted
-        workshop_counts = df['WorkshopName'].value_counts().reset_index()
-        workshop_counts.columns = ['WorkshopName', 'OpenWorkorders']
+        # Merge email-adresser ind i workorders
+        merged = workorders.merge(emails, on="WorkshopName", how="left")
 
-        # Gem begge som ny Excel-fil i hukommelsen
+        # Lav oversigt
+        summary = merged.groupby(["WorkshopName", "Email"]).size().reset_index(name="OpenWorkorders")
+
+        # Gem begge som ny Excel-fil
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Workorders', index=False)
-            workshop_counts.to_excel(writer, sheet_name='Oversigt', index=False)
+            merged.to_excel(writer, sheet_name='DetaljeretData', index=False)
+            summary.to_excel(writer, sheet_name='Oversigt', index=False)
         output.seek(0)
 
         st.success("Rapport genereret!")
         st.download_button(
             label="📎 Download rapport",
             data=output,
-            file_name="rapport_over_abne_workorders.xlsx",
+            file_name="rapport_med_emails.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     except Exception as e:
-        st.error(f"Noget gik galt under behandlingen af filen: {e}")
+        st.error(f"Noget gik galt under behandlingen af filerne: {e}")
