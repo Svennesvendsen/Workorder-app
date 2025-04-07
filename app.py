@@ -6,7 +6,6 @@ from io import BytesIO
 st.set_page_config(page_title="Workorder App", layout="wide")
 st.title("🔧 Workorder App")
 
-# Faner
 tab1, tab2 = st.tabs(["📄 Rapportgenerator", "📊 Dashboard"])
 
 with tab1:
@@ -69,26 +68,45 @@ with tab2:
     if "dashboard_data" in st.session_state:
         df = st.session_state["dashboard_data"]
 
-        st.sidebar.header("🔍 Vælg værksted")
-        selected_workshop = st.sidebar.selectbox("Værksted", options=df["WorkshopName"].unique())
+        st.sidebar.header("🎛 Visning")
+        show_all = st.sidebar.checkbox("Vis alle værksteder samlet", value=True)
 
-        filtered_df = df[df["WorkshopName"] == selected_workshop]
+        if show_all:
+            st.subheader("📊 Samlet overblik over alle værksteder")
+            st.metric("📦 Antal åbne workorders", len(df))
+            st.metric("🏭 Antal værksteder", df['WorkshopName'].nunique())
 
-        st.subheader(f"📊 Dashboard for {selected_workshop}")
-        st.metric("📦 Antal åbne workorders", len(filtered_df))
+            st.subheader("📈 Åbne ordrer pr. værksted")
+            count_by_ws = df['WorkshopName'].value_counts()
+            fig, ax = plt.subplots()
+            count_by_ws.plot(kind='bar', ax=ax)
+            ax.set_ylabel("Antal ordrer")
+            ax.set_xlabel("Værksted")
+            ax.set_title("Åbne ordrer pr. værksted")
+            st.pyplot(fig)
 
-        if "CreationDate" in filtered_df.columns and "RepairDate" in filtered_df.columns:
-            try:
-                filtered_df["CreationDate"] = pd.to_datetime(filtered_df["CreationDate"])
-                filtered_df["RepairDate"] = pd.to_datetime(filtered_df["RepairDate"])
-                filtered_df["Behandlingstid (dage)"] = (filtered_df["RepairDate"] - filtered_df["CreationDate"]).dt.days
-                avg_days = round(filtered_df["Behandlingstid (dage)"].mean(), 1)
-                st.metric("⏱️ Gennemsnitlig behandlingstid", f"{avg_days} dage")
-            except:
-                st.warning("⚠️ Kunne ikke beregne behandlingstid.")
+            st.subheader("📋 Detaljeret tabel")
+            st.dataframe(df, use_container_width=True)
 
-        st.subheader("📋 Detaljer")
-        st.dataframe(filtered_df, use_container_width=True)
+        else:
+            selected_workshop = st.sidebar.selectbox("Vælg værksted", options=df["WorkshopName"].unique())
+            filtered_df = df[df["WorkshopName"] == selected_workshop]
+
+            st.subheader(f"📊 Dashboard for {selected_workshop}")
+            st.metric("📦 Antal åbne workorders", len(filtered_df))
+
+            if "CreationDate" in filtered_df.columns and "RepairDate" in filtered_df.columns:
+                try:
+                    filtered_df["CreationDate"] = pd.to_datetime(filtered_df["CreationDate"])
+                    filtered_df["RepairDate"] = pd.to_datetime(filtered_df["RepairDate"])
+                    filtered_df["Behandlingstid (dage)"] = (filtered_df["RepairDate"] - filtered_df["CreationDate"]).dt.days
+                    avg_days = round(filtered_df["Behandlingstid (dage)"].mean(), 1)
+                    st.metric("⏱️ Gennemsnitlig behandlingstid", f"{avg_days} dage")
+                except:
+                    st.warning("⚠️ Kunne ikke beregne behandlingstid.")
+
+            st.subheader("📋 Detaljer for valgt værksted")
+            st.dataframe(filtered_df, use_container_width=True)
 
     else:
         st.info("Upload filer under 'Rapportgenerator' først.")
