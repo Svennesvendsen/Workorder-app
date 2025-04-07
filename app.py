@@ -24,23 +24,21 @@ with tab1:
             workorders = pd.read_excel(workorder_file)
             emails = pd.read_excel(email_file)
 
-            # Merge data
             merged = workorders.merge(emails, on="WorkshopName", how="left")
-            summary = merged.groupby(["WorkshopName", "Email"]).size().reset_index(name="OpenWorkorders")
+            summary = merged.groupby(["WorkshopName"]).size().reset_index(name="OpenWorkorders")
 
-            # Generer rapport
             output = BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 merged.to_excel(writer, sheet_name="DetaljeretData", index=False)
                 summary.to_excel(writer, sheet_name="Oversigt", index=False)
 
-                # Fanen: PrVærksted
                 workbook = writer.book
                 worksheet = workbook.add_worksheet("PrVærksted")
                 writer.sheets["PrVærksted"] = worksheet
 
                 row = 0
-                for (workshop, email), group in merged.groupby(["WorkshopName", "Email"]):
+                for workshop, group in merged.groupby("WorkshopName"):
+                    email = group['Email'].iloc[0]
                     worksheet.write(row, 0, f"🏭 {workshop} – {email}")
                     row += 2
                     for col_num, col_name in enumerate(group.columns):
@@ -56,7 +54,7 @@ with tab1:
 
             st.success("✅ Rapport genereret!")
             st.download_button(
-                label="📥 Download rapport med værkstedsvisning",
+                label="📥 Download rapport",
                 data=output,
                 file_name="rapport_med_pr_vaerksted.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -71,29 +69,26 @@ with tab2:
     if "dashboard_data" in st.session_state:
         df = st.session_state["dashboard_data"]
 
-        with st.sidebar:
-            st.header("🔍 Filtrér data")
-            workshops = st.multiselect("Vælg værksted(er)", options=df['WorkshopName'].unique(), default=df['WorkshopName'].unique())
-            asset_filter = st.text_input("Søg efter AssetRegNo")
+        st.sidebar.header("🔍 Vælg værksted")
+        selected_workshop = st.sidebar.selectbox("Værksted", options=df["WorkshopName"].unique())
 
-        filtered_df = df[df['WorkshopName'].isin(workshops)]
-        if asset_filter:
-            filtered_df = filtered_df[filtered_df['AssetRegNo'].astype(str).str.contains(asset_filter, case=False)]
+        filtered_df = df[df["WorkshopName"] == selected_workshop]
 
+        st.subheader(f"📊 Dashboard for {selected_workshop}")
         st.metric("📦 Antal åbne workorders", len(filtered_df))
-        st.metric("🏭 Antal værksteder", filtered_df['WorkshopName'].nunique())
 
-        st.subheader("📈 Åbne ordrer pr. værksted")
-        count_by_ws = filtered_df['WorkshopName'].value_counts()
-        fig, ax = plt.subplots()
-        count_by_ws.plot(kind='bar', ax=ax)
-        ax.set_ylabel("Antal ordrer")
-        ax.set_xlabel("Værksted")
-        ax.set_title("Åbne ordrer pr. værksted")
-        st.pyplot(fig)
+        if "CreationDate" in filtered_df.columns and "RepairDate" in filtered_df.columns:
+            try:
+                filtered_df["CreationDate"] = pd.to_datetime(filtered_df["CreationDate"])
+                filtered_df["RepairDate"] = pd.to_datetime(filtered_df["RepairDate"])
+                filtered_df["Behandlingstid (dage)"] = (filtered_df["RepairDate"] - filtered_df["CreationDate"]).dt.days
+                avg_days = round(filtered_df["Behandlingstid (dage)"].mean(), 1)
+                st.metric("⏱️ Gennemsnitlig behandlingstid", f"{avg_days} dage")
+            except:
+                st.warning("⚠️ Kunne ikke beregne behandlingstid.")
 
-        st.subheader("📋 Detaljeret workorder-liste")
+        st.subheader("📋 Detaljer")
         st.dataframe(filtered_df, use_container_width=True)
+
     else:
         st.info("Upload filer under 'Rapportgenerator' først.")
-
