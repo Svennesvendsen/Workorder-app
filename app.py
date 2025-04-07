@@ -1,44 +1,51 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Workorder Rapport", layout="centered")
-st.title("🔧 Udvidet Workorder Rapport")
+st.set_page_config(page_title="Workorder Dashboard", layout="wide")
+st.title("📊 Workorder Dashboard")
 
 st.markdown("""
-Upload to filer:
-1. Excel med **aktive workorders**
-2. Excel med **værksted-email mapping** (WorkshopName + Email)
+Upload din Excel-fil med aktive workorders. Dashboardet viser:
+- Antal åbne ordrer pr. værksted
+- Visualiseringer og interaktiv tabel
 """)
 
-workorder_file = st.file_uploader("Upload workorder Excel-fil", type=["xlsx"])
-email_file = st.file_uploader("Upload værksted-email Excel-fil", type=["xlsx"])
+uploaded_file = st.file_uploader("📄 Upload workorder Excel-fil", type=["xlsx"])
 
-if workorder_file and email_file:
+if uploaded_file:
     try:
-        # Læs data
-        workorders = pd.read_excel(workorder_file)
-        emails = pd.read_excel(email_file)
+        df = pd.read_excel(uploaded_file)
 
-        # Merge email-adresser ind i workorders
-        merged = workorders.merge(emails, on="WorkshopName", how="left")
+        # UI: filtre
+        with st.sidebar:
+            st.header("🔍 Filtrér data")
+            workshops = st.multiselect("Vælg værksted(er)", options=df['WorkshopName'].unique(), default=df['WorkshopName'].unique())
+            asset_filter = st.text_input("Søg efter AssetRegNo")
+        
+        # Filtrér data
+        filtered_df = df[df['WorkshopName'].isin(workshops)]
+        if asset_filter:
+            filtered_df = filtered_df[filtered_df['AssetRegNo'].astype(str).str.contains(asset_filter, case=False)]
 
-        # Lav oversigt
-        summary = merged.groupby(["WorkshopName", "Email"]).size().reset_index(name="OpenWorkorders")
+        # KPI'er
+        total_orders = len(filtered_df)
+        unique_workshops = filtered_df['WorkshopName'].nunique()
+        st.metric("📦 Antal åbne workorders", total_orders)
+        st.metric("🏭 Antal værksteder", unique_workshops)
 
-        # Gem begge som ny Excel-fil
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            merged.to_excel(writer, sheet_name='DetaljeretData', index=False)
-            summary.to_excel(writer, sheet_name='Oversigt', index=False)
-        output.seek(0)
+        # Plot
+        st.subheader("📈 Åbne ordrer pr. værksted")
+        count_by_ws = filtered_df['WorkshopName'].value_counts()
+        fig, ax = plt.subplots()
+        count_by_ws.plot(kind='bar', ax=ax)
+        ax.set_ylabel("Antal ordrer")
+        ax.set_xlabel("Værksted")
+        ax.set_title("Åbne ordrer pr. værksted")
+        st.pyplot(fig)
 
-        st.success("Rapport genereret!")
-        st.download_button(
-            label="📎 Download rapport",
-            data=output,
-            file_name="rapport_med_emails.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # Interaktiv tabel
+        st.subheader("📋 Detaljeret workorder-liste")
+        st.dataframe(filtered_df, use_container_width=True)
     except Exception as e:
-        st.error(f"Noget gik galt under behandlingen af filerne: {e}")
+        st.error(f"Noget gik galt ved indlæsning af filen: {e}")
