@@ -20,7 +20,8 @@ def generate_pdf(df, workshop_name, email, comment):
     styles = getSampleStyleSheet()
 
     try:
-        logo = RLImage("PNO_logo_2018_RGB.png", width=120, height=120)
+        logo_path = os.path.join(os.path.dirname(__file__), "PNO_logo_2018_RGB.png")
+        logo = RLImage(logo_path, width=120, height=120)
         logo.hAlign = 'CENTER'
         elements.append(logo)
     except:
@@ -118,4 +119,5 @@ with tab2:
         st.download_button("📄 Download PDF", data=pdf_file,
                            file_name=f"rapport_{selected_ws.replace(' ', '_')}.pdf",
                            mime="application/pdf")
+
 
