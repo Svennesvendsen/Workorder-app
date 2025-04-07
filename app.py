@@ -38,7 +38,7 @@ def generate_pdf(df, workshop_name, email, comment):
     elements.append(Paragraph(f"<b>E-mail:</b> {email}", styles['Normal']))
     elements.append(Spacer(1, 12))
 
-    display_cols = ['WONumber', 'AssetRegNo', 'CreationDate', 'RepairDate', 'Amount']
+    display_cols = ['WONumber', 'AssetRegNo', 'CreationDate', 'RepairDate']
     table_data = [display_cols] + df[display_cols].astype(str).values.tolist()
 
     table = Table(table_data, hAlign='LEFT')
@@ -71,6 +71,8 @@ with tab1:
                 st.error(f"❌ Følgende kolonner mangler i workorder-filen: {', '.join(missing)}")
             else:
                 merged_df = wo_df.merge(email_df, on="WorkshopName", how="left")
+                merged_df["RepairDate"] = pd.to_datetime(merged_df["RepairDate"], errors="coerce")
+                merged_df.loc[merged_df["RepairDate"].dt.year == 1900, "RepairDate"] = pd.NaT
                 st.session_state["merged"] = merged_df
 
                 st.sidebar.header("🎛 Visning")
@@ -118,6 +120,8 @@ with tab2:
         df = st.session_state["merged"]
         selected_ws = st.selectbox("Vælg værksted til PDF", options=df["WorkshopName"].unique(), key="pdf_ws")
         ws_df = df[df["WorkshopName"] == selected_ws]
+        ws_df["RepairDate"] = pd.to_datetime(ws_df["RepairDate"], errors="coerce")
+        ws_df.loc[ws_df["RepairDate"].dt.year == 1900, "RepairDate"] = pd.NaT
         email = ws_df["Email"].iloc[0]
 
         pdf_file = generate_pdf(ws_df, selected_ws, email, comment)
