@@ -1,23 +1,16 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 from io import BytesIO
 from datetime import datetime
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
-import os
-
-try:
-    import win32com.client as win32
-except ImportError:
-    win32 = None
 
 st.set_page_config(page_title="Workorder App", layout="wide")
-st.title("🔧 Workorder App")
+st.title("🔧 Workorder App – PDF-rapport")
 
-tab1, tab2 = st.tabs(["📄 Rapportgenerator", "📊 Dashboard"])
+tab1 = st.container()
 
 def generate_pdf(df, workshop_name, email, comment):
     buffer = BytesIO()
@@ -58,32 +51,11 @@ def generate_pdf(df, workshop_name, email, comment):
     buffer.seek(0)
     return buffer
 
-def send_email_with_pdf(recipient, pdf_bytes, workshop_name):
-    if win32 is None:
-        st.error("win32com er ikke tilgængelig. Kan ikke sende e-mail fra denne maskine.")
-        return
-
-    outlook = win32.Dispatch('outlook.application')
-    mail = outlook.CreateItem(0)
-    mail.To = recipient
-    mail.Subject = f"Workorder rapport – {workshop_name}"
-    mail.Body = f"Hej\n\nVedhæftet ugentlig rapport for åbne workorders hos {workshop_name}.\n\nMvh\nAutomatisk system"
-
-    temp_path = os.path.join(os.environ["TEMP"], "rapport.pdf")
-    with open(temp_path, "wb") as f:
-        f.write(pdf_bytes.read())
-    mail.Attachments.Add(temp_path)
-    mail.Send()
-    os.remove(temp_path)
-
 with tab1:
-    st.info("Brug dashboard-fanen for PDF og mailfunktion.")
+    st.markdown("### 📄 Generér PDF-rapport for værksted")
 
-with tab2:
-    st.markdown("### 📊 Dashboard + PDF/E-mail funktion")
-
-    workorder_file = st.file_uploader("📄 Upload workorder Excel-fil", type=["xlsx"], key="wo_file2")
-    email_file = st.file_uploader("📧 Upload værksted-email Excel-fil", type=["xlsx"], key="email_file2")
+    workorder_file = st.file_uploader("📄 Upload workorder Excel-fil", type=["xlsx"], key="wo_file")
+    email_file = st.file_uploader("📧 Upload værksted-email Excel-fil", type=["xlsx"], key="email_file")
     comment = st.text_input("🗒️ Kommentar til rapport", value="Vedhæftet ugentlig rapport")
 
     if workorder_file and email_file:
@@ -107,7 +79,3 @@ with tab2:
         st.download_button("📄 Download PDF-rapport", data=pdf_data,
                            file_name=f"rapport_{selected_ws.replace(' ', '_')}.pdf",
                            mime="application/pdf")
-
-        if st.button("✉️ Send rapport til værkstedets e-mail"):
-            send_email_with_pdf(email, pdf_data, selected_ws)
-            st.success(f"📬 Rapport sendt til {email}")
