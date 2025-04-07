@@ -7,6 +7,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
+import os
 
 st.set_page_config(page_title="Workorder Dashboard", layout="wide")
 st.title("🔧 Workorder Dashboard + PDF")
@@ -87,6 +88,8 @@ with tab1:
                     st.pyplot(fig)
 
                     st.subheader("📋 Alle ordrer")
+                    merged_df["CreationDate"] = pd.to_datetime(merged_df["CreationDate"], errors="coerce")
+                    merged_df = merged_df.sort_values(by="CreationDate", ascending=True)
                     st.dataframe(merged_df, use_container_width=True)
                 else:
                     selected_ws = st.sidebar.selectbox("Vælg værksted", options=merged_df["WorkshopName"].unique())
@@ -101,6 +104,8 @@ with tab1:
                             st.metric("⏱️ Gennemsnitlig behandlingstid", f"{round(ws_df['Days'].mean(), 1)} dage")
                         except:
                             pass
+                    ws_df["CreationDate"] = pd.to_datetime(ws_df["CreationDate"], errors="coerce")
+                    ws_df = ws_df.sort_values(by="CreationDate", ascending=True)
                     st.dataframe(ws_df, use_container_width=True)
         except Exception as e:
             st.error(f"Fejl ved indlæsning: {e}")
@@ -119,5 +124,4 @@ with tab2:
         st.download_button("📄 Download PDF", data=pdf_file,
                            file_name=f"rapport_{selected_ws.replace(' ', '_')}.pdf",
                            mime="application/pdf")
-
 
