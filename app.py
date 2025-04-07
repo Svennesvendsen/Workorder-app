@@ -116,3 +116,4 @@ with tab2:
         st.download_button("📄 Download PDF", data=pdf_file,
                            file_name=f"rapport_{selected_ws.replace(' ', '_')}.pdf",
                            mime="application/pdf")
+
