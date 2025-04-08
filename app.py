@@ -24,10 +24,8 @@ def generate_pdf(df, workshop_name, email, comment):
         logo_path = os.path.join(os.path.dirname(__file__), "PNO_logo_2018_RGB.png")
         if os.path.exists(logo_path):
             logo = RLImage(logo_path, width=120, height=120)
-            logo.hAlign = "CENTER"
+            logo.hAlign = 'CENTER'
             elements.append(logo)
-        logo.hAlign = 'CENTER'
-        elements.append(logo)
     except:
         pass
 
@@ -68,7 +66,7 @@ with tab1:
             wo_df = pd.read_excel(wo_file)
             email_df = pd.read_excel(email_file)
 
-            required_cols = ['WONumber', 'WorkshopName', 'AssetRegNo', 'CreationDate', 'RepairDate', 'Amount']
+            required_cols = ['WONumber', 'WorkshopName', 'AssetRegNo', 'CreationDate', 'RepairDate']
             missing = [col for col in required_cols if col not in wo_df.columns]
             if missing:
                 st.error(f"❌ Følgende kolonner mangler i workorder-filen: {', '.join(missing)}")
@@ -87,7 +85,7 @@ with tab1:
                     st.metric("🏭 Antal værksteder", merged_df["WorkshopName"].nunique())
 
                     st.subheader("📈 Ordrer pr. værksted")
-                    fig, ax = plt.subplots()
+                    fig, ax = plt.subplots(figsize=(8, 4))
                     merged_df["WorkshopName"].value_counts().plot(kind="bar", ax=ax)
                     ax.set_ylabel("Ordrer")
                     st.pyplot(fig)
@@ -111,6 +109,7 @@ with tab1:
                             pass
                     ws_df["CreationDate"] = pd.to_datetime(ws_df["CreationDate"], errors="coerce")
                     ws_df = ws_df.sort_values(by="CreationDate", ascending=True)
+                    ws_df.loc[ws_df["RepairDate"].dt.year == 1900, "RepairDate"] = pd.NaT
                     st.dataframe(ws_df, use_container_width=True)
         except Exception as e:
             st.error(f"Fejl ved indlæsning: {e}")
@@ -123,9 +122,9 @@ with tab2:
         df = st.session_state["merged"]
         selected_ws = st.selectbox("Vælg værksted til PDF", options=df["WorkshopName"].unique(), key="pdf_ws")
         ws_df = df[df["WorkshopName"] == selected_ws]
+        email = ws_df["Email"].iloc[0]
         ws_df["RepairDate"] = pd.to_datetime(ws_df["RepairDate"], errors="coerce")
         ws_df.loc[ws_df["RepairDate"].dt.year == 1900, "RepairDate"] = pd.NaT
-        email = ws_df["Email"].iloc[0]
 
         pdf_file = generate_pdf(ws_df, selected_ws, email, comment)
         st.download_button("📄 Download PDF", data=pdf_file,
