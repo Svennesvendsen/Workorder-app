@@ -10,9 +10,9 @@ from reportlab.lib.styles import getSampleStyleSheet
 import os
 
 st.set_page_config(page_title="Workorder Dashboard", layout="wide")
-st.title("🔧 Workorder Dashboard + PDF")
+st.title("🔧 Workorder Dashboard + PDF + Excel")
 
-tab1, tab2 = st.tabs(["📊 Dashboard", "📄 PDF Report"])
+tab1, tab2 = st.tabs(["📊 Dashboard", "📄 PDF & Excel Report"])
 
 def generate_pdf(df, workshop_name, email, comment):
     buffer = BytesIO()
@@ -129,18 +129,28 @@ with tab1:
             st.error(f"Error loading files: {e}")
 
 with tab2:
-    st.markdown("### Generate PDF for a single workshop")
+    st.markdown("### Generate PDF and Excel for a single workshop")
     comment = st.text_input("🗒️ Note for the report", value="Open workorders")
 
     if "merged" in st.session_state:
         df = st.session_state["merged"]
-        selected_ws = st.selectbox("Select workshop for PDF", options=df["WorkshopName"].unique(), key="pdf_ws")
+        selected_ws = st.selectbox("Select workshop for report", options=df["WorkshopName"].unique(), key="pdf_ws")
         ws_df = df[df["WorkshopName"] == selected_ws]
         email = ws_df["Email"].iloc[0]
         ws_df["RepairDate"] = pd.to_datetime(ws_df["RepairDate"], errors="coerce")
         ws_df.loc[ws_df["RepairDate"].dt.year == 1900, "RepairDate"] = pd.NaT
 
+        # PDF
         pdf_file = generate_pdf(ws_df, selected_ws, email, comment)
         st.download_button("📄 Download PDF", data=pdf_file,
                            file_name=f"report_{selected_ws.replace(' ', '_')}.pdf",
                            mime="application/pdf")
+
+        # Excel
+        excel_buffer = BytesIO()
+        export_cols = ['WONumber', 'AssetRegNo', 'CreationDate', 'RepairDate']
+        ws_df[export_cols].to_excel(excel_buffer, index=False)
+        excel_buffer.seek(0)
+        st.download_button("📊 Download Excel", data=excel_buffer,
+                           file_name=f"report_{selected_ws.replace(' ', '_')}.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
